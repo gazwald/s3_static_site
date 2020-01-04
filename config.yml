@@ -1,0 +1,6 @@
+---
+stack_name: ExampleStack
+domain: example.com
+subdomain: mel
+acm_id: 04fb379c-6873-45b5-9277-4ad37d61365e
+
