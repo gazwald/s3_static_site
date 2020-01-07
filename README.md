@@ -39,7 +39,7 @@ $ cdk synth
 
 By default this stack will look for `config.yml` and the `src` directory up one directory or in the same directory as this repo.
 
-`config.yml` is provided as an example and should be updated for your deployment.
+`example_config.yml` is provided as an example and should be updated for your deployment.
 
 ## Useful commands
 
