@@ -10,6 +10,8 @@ Ensure the CDK CLI tool is present
 npm install -g aws-cdk
 ```
 
+Create Python virtual environment
+
 ```
 $ python3 -m venv .env
 ```
