@@ -2,7 +2,13 @@
 # S3 Static Site deployed with AWS CDK
 
 
-## set up
+## Set up
+
+Ensure the CDK CLI tool is present
+
+```
+npm install -g aws-cdk
+```
 
 ```
 $ python3 -m venv .env
