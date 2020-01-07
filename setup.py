@@ -19,11 +19,14 @@ setuptools.setup(
     packages=setuptools.find_packages(where="deploy"),
 
     install_requires=[
+        "pyyaml",
         "aws-cdk.core",
         "aws_cdk.aws_certificatemanager",
         "aws_cdk.aws_s3",
         "aws_cdk.aws_s3_deployment",
         "aws_cdk.aws_cloudfront",
+        "aws_cdk.aws_route53",
+        "aws_cdk.aws_route53_targets",
     ],
 
     python_requires=">=3.6",
