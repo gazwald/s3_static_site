@@ -37,7 +37,15 @@ $ cdk synth
 
 ## Configuration
 
-By default this stack will look for `config.yml` and the `src` directory up one directory or in the same directory as this repo.
+Expected layout:
+
+```
+./config.yml  # Config, copy example_config.yml
+./deploy/     # This repo
+./src/        # Website code
+              # Directory configurable within config.yml
+
+By default this stack will look for `config.yml` either in the `deploy` directory or in the root path of the parent repo.
 
 `example_config.yml` is provided as an example and should be updated for your deployment.
 
