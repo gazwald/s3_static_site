@@ -42,10 +42,8 @@ class DeployStack(core.Stack):
         Gather assets and deploy them to the S3 bucket
         Assumes path, relative to this directory, is ../src
         """
-        if os.path.isdir(os.path.join(os.getcwd(), "..", "src")):
-            assets_directory = os.path.join(os.getcwd(), "..", "src")
-        elif os.path.isdir(os.path.join(os.getcwd(), "src")):
-            assets_directory = os.path.join(os.getcwd(), "src")
+        if os.path.isdir(os.path.join(os.getcwd(), config.get("source")):
+            assets_directory = os.path.join(os.getcwd(), config.get("source"))
         else:
             print("Unable to find src directory")
             sys.exit(1)
