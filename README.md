@@ -44,6 +44,7 @@ Expected layout:
 ./deploy/     # This repo
 ./src/        # Website code
               # Directory configurable within config.yml
+```
 
 By default this stack will look for `config.yml` either in the `deploy` directory or in the root path of the parent repo.
 
