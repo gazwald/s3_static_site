@@ -97,14 +97,14 @@ class DeployStack(core.Stack):
 
 
         if config.get("ipv6_support", False):
-            route53.AAAARecord(self, "IPv6SubDomainAlias",
+            route53.AaaaRecord(self, "IPv6SubDomainAlias",
                 zone=self.zone,
                 record_name=config.get("subdomain"),
                 target=route53.AddressRecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
             )
 
             if config.get("include_apex", False):
-                route53.AAAARecord(self, "IPv6ApexAlias",
+                route53.AaaaRecord(self, "IPv6ApexAlias",
                     zone=self.zone,
                     target=route53.AddressRecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
                 )
