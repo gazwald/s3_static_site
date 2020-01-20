@@ -7,8 +7,8 @@ from aws_cdk import core
 
 from deploy.deploy_stack import DeployStack
 
-path1 = os.path.isfile(os.path.join(os.getcwd(), "..", "config.yml"))
-path2 = os.path.isfile(os.path.join(os.getcwd(), "config.yml"))
+path1 = os.path.join(os.getcwd(), "..", "config.yml")
+path2 = os.path.join(os.getcwd(), "config.yml")
 
 if os.path.isfile(path1):
     config_path = path1
