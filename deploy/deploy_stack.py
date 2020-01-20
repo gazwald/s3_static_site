@@ -24,9 +24,9 @@ class DeployStack(core.Stack):
         sub_domain = ".".join([config.get("subdomain"), domain])
 
         if config.get("include_apex", False):
-            aliases=[domain, subdomain]
+            aliases=[domain, sub_domain]
         else:
-            aliases=[subdomain]
+            aliases=[sub_domain]
 
         """
         Set the price class for CloudFront
