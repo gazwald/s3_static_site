@@ -83,28 +83,28 @@ class DeployStack(core.Stack):
         self.zone = route53.HostedZone.from_lookup(self, config.get("stack_name") + "_zone",
                                                    domain_name=config.get("domain"))
 
-        route53.ARecord(self, "Alias",
+        route53.ARecord(self, "IPv4SubDomainAlias",
             zone=self.zone,
             record_name=config.get("subdomain"),
             target=route53.AddressRecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
         )
 
         if config.get("include_apex", False):
-            route53.ARecord(self, "Alias",
+            route53.ARecord(self, "IPv4ApexAlias",
                 zone=self.zone,
                 target=route53.AddressRecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
             )
 
 
         if config.get("ipv6_support", False):
-            route53.AAAARecord(self, "Alias",
+            route53.AAAARecord(self, "IPv6SubDomainAlias",
                 zone=self.zone,
                 record_name=config.get("subdomain"),
                 target=route53.AddressRecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
             )
 
             if config.get("include_apex", False):
-                route53.AAAARecord(self, "Alias",
+                route53.AAAARecord(self, "IPv6ApexAlias",
                     zone=self.zone,
                     target=route53.AddressRecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
                 )
