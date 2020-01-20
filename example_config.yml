@@ -4,3 +4,6 @@ domain: example.com                           # The top level domain to be used
 subdomain: mysubdomain                        # The subdomain this site will be deployed under
 acm_id: 04fb379c-6873-45b5-9277-4ad37d61365e  # The ID of the AWS Certificate Manager certificate to use
 source: src                                   # Source directory, assumed to be up one directory level from this directory
+include_apex: false                           # Whether to also create a record for the zone apex,
+                                              # eg example.com, as well as mysubdomain.example.com
+ipv6_support: false                           # Also add AAAA records

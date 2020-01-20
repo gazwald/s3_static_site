@@ -88,3 +88,23 @@ class DeployStack(core.Stack):
             record_name=config.get("subdomain"),
             target=route53.AddressRecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
         )
+
+        if config.get("include_apex", False):
+            route53.ARecord(self, "Alias",
+                zone=self.zone,
+                target=route53.AddressRecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
+            )
+
+
+        if config.get("ipv6_support", False):
+            route53.AAAARecord(self, "Alias",
+                zone=self.zone,
+                record_name=config.get("subdomain"),
+                target=route53.AddressRecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
+            )
+
+            if config.get("include_apex", False):
+                route53.AAAARecord(self, "Alias",
+                    zone=self.zone,
+                    target=route53.AddressRecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
+                )
