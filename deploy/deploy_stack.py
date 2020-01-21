@@ -133,7 +133,7 @@ class DeployStack(core.Stack):
             redirect_bucket = s3.Bucket(
                 self,
                 config.get("stack_name") + "apex_redirect",
-                website_redirect={"host_name": subdomain}
+                website_redirect={"host_name": sub_domain}
             )
 
             apex_target = route53.RecordTarget.from_alias(route53_targets.BucketWebsiteTarget(redirect_bucket))
