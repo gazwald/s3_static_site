@@ -7,3 +7,6 @@ source: src                                   # Source directory, assumed to be 
 include_apex: false                           # Whether to also create a record for the zone apex,
                                               # eg example.com, as well as mysubdomain.example.com
 ipv6_support: false                           # Also add AAAA records
+price_class: "100"                            # "100" = US, Canada, and Europe
+                                              # "200" = US, Canada, Europe, Asia, Middle East, and Africa
+                                              # "ALL" = All Edge locations

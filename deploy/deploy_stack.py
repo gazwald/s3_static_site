@@ -31,10 +31,10 @@ class DeployStack(core.Stack):
         """
         Set the price class for CloudFront
         """
-        price_class_dict = {'100': cloudfront.PriceClass.PRICE_CLASS_100,
-                            '200': cloudfront.PriceClass.PRICE_CLASS_200,
-                            'ALL': cloudfront.PriceClass.PRICE_CLASS_ALL}
-        price_class = price_class_dict.get(config.get('price_class', '100'))
+        price_class_dict = {"100": cloudfront.PriceClass.PRICE_CLASS_100,   # US, Canada, and Europe
+                            "200": cloudfront.PriceClass.PRICE_CLASS_200,   # US, Canada, Europe, Asia, Middle East, and Africa
+                            "ALL": cloudfront.PriceClass.PRICE_CLASS_ALL}   # All Edge locations
+        price_class = price_class_dict.get(config.get("price_class", "100"))
 
         """
         Get existing ACM certificate
