@@ -129,6 +129,17 @@ class DeployStack(core.Stack):
 
         cloudfront_target = route53.RecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
 
+        if config.get("redirect_apex", True):
+            redirect_bucket = s3.Bucket(
+                self,
+                config.get("stack_name") + "apex_redirect",
+                website_redirect={"host_name": subdomain}
+            )
+
+            apex_target = route53.RecordTarget.from_alias(route53_targets.BucketWebsiteTarget(redirect_bucket))
+        else:
+            apex_target = cloudfront_target
+
         route53.ARecord(
             self,
             config.get("stack_name") + "_v4_sub_alias",
@@ -142,7 +153,7 @@ class DeployStack(core.Stack):
                 self,
                 config.get("stack_name") + "_v4_apex_alias",
                 zone=zone,
-                target=cloudfront_target
+                target=apex_target
             )
 
 
@@ -160,5 +171,5 @@ class DeployStack(core.Stack):
                     self,
                     config.get("stack_name") + "_v6_apex_alias",
                     zone=zone,
-                    target=cloudfront_target
+                    target=apex_target
                 )

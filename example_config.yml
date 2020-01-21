@@ -10,3 +10,4 @@ ipv6_support: false                           # Also add AAAA records
 price_class: "100"                            # "100" = US, Canada, and Europe
                                               # "200" = US, Canada, Europe, Asia, Middle East, and Africa
                                               # "ALL" = All Edge locations
+redirect_apex: true                           # Redirect domain (example.com) to subdomain (mysubdomain.example.com)
