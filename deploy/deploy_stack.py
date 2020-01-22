@@ -114,7 +114,7 @@ class DeployStack(core.Stack):
             ],
             viewer_certificate=cloudfront.ViewerCertificate.from_acm_certificate(
                 certificate,
-                aliases=[subdomain],
+                aliases=[sub_domain],
                 security_policy=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018,
                 ssl_method=cloudfront.SSLMethod.SNI
             ),
