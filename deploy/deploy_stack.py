@@ -96,7 +96,7 @@ class DeployStack(core.Stack):
 
         # Workaround for known bug with CloudFront and S3 Redirects
         # https://github.com/aws/aws-cdk/issues/5700
-        s3_redirect_origin_config = cloudfront.S3OriginConfig(
+        s3_redirect_origin_config = cloudfront.CustomOriginConfig(
             domain_name=redirect_bucket.bucket_website_url,
             origin_protocol_policy=cloudfront.OriginProtocolPolicy.HTTP_ONLY
         )
