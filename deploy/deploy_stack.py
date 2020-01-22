@@ -23,11 +23,6 @@ class DeployStack(core.Stack):
         domain = config.get("domain")
         sub_domain = ".".join([config.get("subdomain"), domain])
 
-        if config.get("include_apex", False):
-            aliases=[domain, sub_domain]
-        else:
-            aliases=[sub_domain]
-
         """
         Set the price class for CloudFront
         """
@@ -124,7 +119,12 @@ class DeployStack(core.Stack):
                     behaviors=[cloudfront.Behavior(is_default_behavior=True)]
                 )
             ],
-            viewer_certificate=viewer_certificate,
+            viewer_certificate=cloudfront.ViewerCertificate.from_acm_certificate(
+                certificate,
+                aliases=[subdomain],
+                security_policy=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018,
+                ssl_method=cloudfront.SSLMethod.SNI
+            ),
             price_class=price_class
         )
 
@@ -138,7 +138,12 @@ class DeployStack(core.Stack):
                         behaviors=[cloudfront.Behavior(is_default_behavior=True)]
                     )
                 ],
-                viewer_certificate=viewer_certificate,
+                viewer_certificate=cloudfront.ViewerCertificate.from_acm_certificate(
+                    certificate,
+                    aliases=[domain],
+                    security_policy=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018,
+                    ssl_method=cloudfront.SSLMethod.SNI
+                ),
                 price_class=price_class
             )
 
