@@ -9,7 +9,7 @@ import aws_cdk.aws_cloudfront as cloudfront
 import aws_cdk.aws_route53 as route53
 import aws_cdk.aws_route53_targets as route53_targets
 
-
+# TODO: Split site and redirect components
 
 class DeployStack(core.Stack):
 
@@ -54,11 +54,19 @@ class DeployStack(core.Stack):
         """
         Create S3 Bucket for assets"
         """
-        s3_bucket_source = s3.Bucket(
+        site_bucket = s3.Bucket(
             self,
             config.get("stack_name") + "_s3",
             removal_policy=core.RemovalPolicy.DESTROY
         )
+
+        if config.get("redirect_apex", True):
+            redirect_bucket = s3.Bucket(
+                self,
+                config.get("stack_name") + "_apex_redirect",
+                website_redirect={"host_name": sub_domain},
+                removal_policy=core.RemovalPolicy.DESTROY
+            )
 
         """
         Gather assets and deploy them to the S3 bucket
@@ -75,7 +83,7 @@ class DeployStack(core.Stack):
             self,
             config.get("stack_name") + "_deploy",
             sources=[s3deploy.Source.asset(assets_directory)],
-            destination_bucket=s3_bucket_source,
+            destination_bucket=site_bucket,
         )
 
         """
@@ -86,31 +94,53 @@ class DeployStack(core.Stack):
             self,
             config.get("stack_name") + "_OAI"
         )
-        s3_origin_config = cloudfront.S3OriginConfig(
-            s3_bucket_source=s3_bucket_source,
+        s3_site_origin_config = cloudfront.S3OriginConfig(
+            s3_bucket_source=site_bucket,
+            origin_access_identity=s3_oai
+        )
+
+        s3_redirect_origin_config = cloudfront.S3OriginConfig(
+            s3_bucket_source=redirect_bucket,
             origin_access_identity=s3_oai
         )
 
         """
         Pull it all together in a CloudFront distribution
         """
-        distribution = cloudfront.CloudFrontWebDistribution(
+    
+        viewer_certificate = cloudfront.ViewerCertificate.from_acm_certificate(
+            certificate,
+            aliases=aliases,
+            security_policy=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018,
+            ssl_method=cloudfront.SSLMethod.SNI
+        )
+
+        site_distribution = cloudfront.CloudFrontWebDistribution(
             self, 
             config.get("stack_name") + "_cloudfront",
             origin_configs=[
                 cloudfront.SourceConfiguration(
-                    s3_origin_source=s3_origin_config,
+                    s3_origin_source=s3_site_origin_config,
                     behaviors=[cloudfront.Behavior(is_default_behavior=True)]
                 )
             ],
-            viewer_certificate=cloudfront.ViewerCertificate.from_acm_certificate(
-                certificate,
-                aliases=aliases,
-                security_policy=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018,
-                ssl_method=cloudfront.SSLMethod.SNI
-            ),
+            viewer_certificate=viewer_certificate,
             price_class=price_class
         )
+
+        if config.get("redirect_apex", True):
+            redirect_distribution = cloudfront.CloudFrontWebDistribution(
+                self, 
+                config.get("stack_name") + "_cloudfront_redirect",
+                origin_configs=[
+                    cloudfront.SourceConfiguration(
+                        s3_origin_source=s3_redirect_origin_config,
+                        behaviors=[cloudfront.Behavior(is_default_behavior=True)]
+                    )
+                ],
+                viewer_certificate=viewer_certificate,
+                price_class=price_class
+            )
 
         """
         Setup route53 entries
@@ -127,26 +157,20 @@ class DeployStack(core.Stack):
             domain_name=config.get("domain")
         )
 
-        cloudfront_target = route53.RecordTarget.from_alias(route53_targets.CloudFrontTarget(distribution))
+        cloudfront_site_target = route53.RecordTarget.from_alias(route53_targets.CloudFrontTarget(site_distribution))
 
         if config.get("redirect_apex", True):
-            redirect_bucket = s3.Bucket(
-                self,
-                config.get("stack_name") + "_apex_redirect",
-                website_redirect={"host_name": sub_domain},
-                removal_policy=core.RemovalPolicy.DESTROY
-            )
-
-            apex_target = route53.RecordTarget.from_alias(route53_targets.BucketWebsiteTarget(redirect_bucket))
+            cloudfront_redirect_target = route53.RecordTarget.from_alias(route53_targets.CloudFrontTarget(redirect_distribution))
+            apex_target = cloudfront_redirect_target
         else:
-            apex_target = cloudfront_target
+            apex_target = cloudfront_site_target
 
         route53.ARecord(
             self,
             config.get("stack_name") + "_v4_sub_alias",
             zone=zone,
             record_name=config.get("subdomain"),
-            target=cloudfront_target
+            target=cloudfront_site_target
         )
 
         if config.get("include_apex", False):
@@ -164,7 +188,7 @@ class DeployStack(core.Stack):
                 config.get("stack_name") + "_v6_sub_alias",
                 zone=zone,
                 record_name=config.get("subdomain"),
-                target=cloudfront_target
+                target=cloudfront_site_target
             )
 
             if config.get("include_apex", False):
