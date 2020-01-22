@@ -129,7 +129,7 @@ class DeployStack(core.Stack):
                 config.get("stack_name") + "_cloudfront_redirect",
                 origin_configs=[
                     cloudfront.SourceConfiguration(
-                        s3_origin_source=s3_redirect_origin_config,
+                        custom_origin_source=s3_redirect_origin_config,
                         behaviors=[cloudfront.Behavior(is_default_behavior=True)]
                     )
                 ],
