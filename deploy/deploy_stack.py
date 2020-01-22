@@ -94,9 +94,11 @@ class DeployStack(core.Stack):
             origin_access_identity=s3_oai
         )
 
+        # Workaround for known bug with CloudFront and S3 Redirects
+        # https://github.com/aws/aws-cdk/issues/5700
         s3_redirect_origin_config = cloudfront.S3OriginConfig(
-            s3_bucket_source=redirect_bucket,
-            origin_access_identity=s3_oai
+            domain_name=redirect_bucket.bucket_website_url,
+            origin_protocol_policy=cloudfront.OriginProtocolPolicy.HTTP
         )
 
         """
