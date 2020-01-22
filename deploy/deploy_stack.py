@@ -102,13 +102,6 @@ class DeployStack(core.Stack):
         """
         Pull it all together in a CloudFront distribution
         """
-    
-        viewer_certificate = cloudfront.ViewerCertificate.from_acm_certificate(
-            certificate,
-            aliases=aliases,
-            security_policy=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018,
-            ssl_method=cloudfront.SSLMethod.SNI
-        )
 
         site_distribution = cloudfront.CloudFrontWebDistribution(
             self, 
