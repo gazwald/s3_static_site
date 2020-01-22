@@ -63,7 +63,7 @@ class DeployStack(core.Stack):
         if config.get("redirect_apex", True):
             redirect_bucket = s3.Bucket(
                 self,
-                config.get("stack_name") + "_apex_redirect",
+                config.get("stack_name") + "_redirect",
                 website_redirect={"host_name": sub_domain},
                 removal_policy=core.RemovalPolicy.DESTROY
             )
