@@ -98,7 +98,7 @@ class DeployStack(core.Stack):
         # https://github.com/aws/aws-cdk/issues/5700
         s3_redirect_origin_config = cloudfront.S3OriginConfig(
             domain_name=redirect_bucket.bucket_website_url,
-            origin_protocol_policy=cloudfront.OriginProtocolPolicy.HTTP
+            origin_protocol_policy=cloudfront.OriginProtocolPolicy.HTTP_ONLY
         )
 
         """
