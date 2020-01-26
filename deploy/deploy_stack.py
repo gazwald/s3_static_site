@@ -60,7 +60,7 @@ class DeployStack(core.Stack):
                 self,
                 config.get("stack_name") + "_redirect",
                 website_redirect={"host_name": sub_domain,
-                                  "protocol": "HTTPS"},
+                                  "protocol": s3.RedirectProtocol.HTTPS},
                 removal_policy=core.RemovalPolicy.DESTROY,
                 public_read_access=True
             )
