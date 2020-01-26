@@ -59,7 +59,8 @@ class DeployStack(core.Stack):
             redirect_bucket = s3.Bucket(
                 self,
                 config.get("stack_name") + "_redirect",
-                website_redirect={"host_name": sub_domain},
+                website_redirect={"host_name": sub_domain,
+                                  "protocol": "HTTPS"},
                 removal_policy=core.RemovalPolicy.DESTROY,
                 public_read_access=True
             )
