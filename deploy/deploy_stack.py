@@ -1,5 +1,6 @@
 import os
 import sys
+from string import Template
 
 from aws_cdk import core
 import aws_cdk.aws_certificatemanager as certificatemanager
@@ -16,136 +17,172 @@ class DeployStack(core.Stack):
     def __init__(self, scope: core.Construct, id: str, config: dict,  **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
+        self.config = config
+
         """
         Set up domain and subdomain variables
         Along with aliases used within CloudFront
         """
-        domain = config.get("domain")
-        sub_domain = ".".join([config.get("subdomain"), domain])
+        self.domain = self.config.get("domain")
+        self.sub_domain = ".".join([self.config.get("subdomain"), self.domain])
+        self.zone = self.get_zone()
 
+        self.certificate = self.get_certificate()
+
+        self.bucket_assets = self.create_asset_bucket()
+        self.site_distribution = self.create_site_distribution()
+
+        if self.config.get("redirect_apex", True):
+            self.bucket_redirect = self.create_redirect_bucket()
+            self.redirect_distribution = self.create_redirect_distribution()
+
+        self.create_records()
+
+    def get_zone(self):
+        return route53.HostedZone.from_lookup(
+            self,
+            self.config.get("stack_name") + "_zone",
+            domain_name=self.config.get("domain")
+        )
+
+    def get_pricing_class(self):
         """
         Set the price class for CloudFront
         """
-        price_class_dict = {"100": cloudfront.PriceClass.PRICE_CLASS_100,   # US, Canada, and Europe
-                            "200": cloudfront.PriceClass.PRICE_CLASS_200,   # US, Canada, Europe, Asia, Middle East, and Africa
-                            "ALL": cloudfront.PriceClass.PRICE_CLASS_ALL}   # All Edge locations
-        price_class = price_class_dict.get(config.get("price_class", "100"))
+        price_class_dict = {
+            "100": cloudfront.PriceClass.PRICE_CLASS_100,   # US, Canada, and Europe
+            "200": cloudfront.PriceClass.PRICE_CLASS_200,   # US, Canada, Europe, Asia, Middle East, and Africa
+            "ALL": cloudfront.PriceClass.PRICE_CLASS_ALL    # All Edge locations
+        }
+        return price_class_dict.get(self.config.get("price_class", "100"))
 
+    def get_certificate(self):
         """
         Get existing ACM certificate
         """
-        if config.get("acm_id"):
-            arn = "arn:aws:acm:us-east-1:{account}:certificate/{certificate_id}".format(account=os.getenv("CDK_DEFAULT_ACCOUNT"),
-                                                                                        certificate_id=config.get("acm_id"))
-            certificate = certificatemanager.Certificate.from_certificate_arn(
+        acm_arn_template = Template("arn:aws:acm:us-east-1:$account:certificate/$certificate_id")
+        if self.config.get("acm_id"):
+            arn = acm_arn_template.substitute(
+                account=os.getenv("CDK_DEFAULT_ACCOUNT"),
+                certificate_id=self.config.get("acm_id")
+            )
+            return certificatemanager.Certificate.from_certificate_arn(
                 self,
-                config.get("stack_name") + "_cert",
+                self.config.get("stack_name") + "_cert",
                 arn
             )
         else:
             print("Certificate creation not yet supported by this script")
             sys.exit(1)
 
+    def create_asset_bucket(self):
         """
         Create S3 Bucket for assets"
         """
-        site_bucket = s3.Bucket(
+        return s3.Bucket(
             self,
-            config.get("stack_name") + "_s3",
+            self.config.get("stack_name") + "_s3",
             removal_policy=core.RemovalPolicy.DESTROY
         )
 
-        if config.get("redirect_apex", True):
-            redirect_bucket = s3.Bucket(
-                self,
-                config.get("stack_name") + "_redirect",
-                website_redirect={"host_name": sub_domain,
-                                  "protocol": s3.RedirectProtocol.HTTPS},
-                removal_policy=core.RemovalPolicy.DESTROY,
-                public_read_access=True
-            )
+    def create_redirect_bucket(self):
+        return s3.Bucket(
+            self,
+            self.config.get("stack_name") + "_redirect",
+            website_redirect={"host_name": self.sub_domain,
+                              "protocol": s3.RedirectProtocol.HTTPS},
+            removal_policy=core.RemovalPolicy.DESTROY,
+            public_read_access=True
+        )
 
+    def gather_assets(self):
         """
         Gather assets and deploy them to the S3 bucket
         Assumes path is <pwd>/../<config_source>
         """
-        paths = [ os.path.join(os.getcwd(), config.get("source")),
-                  os.path.join(os.getcwd(), "..", config.get("source")) ]
+        paths = [ os.path.join(os.getcwd(), self.config.get("source")),
+                  os.path.join(os.getcwd(), "..", self.config.get("source")) ]
         assets_path = [ path for path in paths if os.path.isdir(path) ]
         if assets_path:
-            assets_directory = assets_path.pop()
-        else:
-            print(f"Unable to find src directory: {assets_path}")
-            sys.exit(1)
+            return assets_path.pop()
 
-        s3deploy.BucketDeployment(
+    def create_bucket_deployment(self):
+        assets_directory = self.gather_assets()
+        return s3deploy.BucketDeployment(
             self,
-            config.get("stack_name") + "_deploy",
+            self.config.get("stack_name") + "_deploy",
             sources=[s3deploy.Source.asset(assets_directory)],
-            destination_bucket=site_bucket,
+            destination_bucket=self.bucket_assets,
         )
 
+    def create_asset_oai_config(self):
         """
         Create OAI policy for S3/CloudFront
         Means bucket does not need to be public
         """
         s3_oai = cloudfront.OriginAccessIdentity(
             self,
-            config.get("stack_name") + "_OAI"
+            self.config.get("stack_name") + "_OAI"
         )
-        s3_site_origin_config = cloudfront.S3OriginConfig(
-            s3_bucket_source=site_bucket,
+        return cloudfront.S3OriginConfig(
+            s3_bucket_source=self.bucket_assets,
             origin_access_identity=s3_oai
         )
 
+    def create_redirect_oai_config(self):
         # Workaround for known bug with CloudFront and S3 Redirects
         # https://github.com/aws/aws-cdk/issues/5700
-        s3_redirect_origin_config = cloudfront.CustomOriginConfig(
-            domain_name=redirect_bucket.bucket_website_domain_name,
+        return cloudfront.CustomOriginConfig(
+            domain_name=self.bucket_redirect.bucket_website_domain_name,
             origin_protocol_policy=cloudfront.OriginProtocolPolicy.HTTP_ONLY
         )
 
+    def create_site_distribution(self):
         """
         Pull it all together in a CloudFront distribution
         """
-
-        site_distribution = cloudfront.CloudFrontWebDistribution(
+        return cloudfront.CloudFrontWebDistribution(
             self, 
-            config.get("stack_name") + "_cloudfront",
+            self.config.get("stack_name") + "_cloudfront",
             origin_configs=[
                 cloudfront.SourceConfiguration(
-                    s3_origin_source=s3_site_origin_config,
-                    behaviors=[cloudfront.Behavior(is_default_behavior=True)]
+                    s3_origin_source=self.create_asset_oai_config(),
+                    behaviors=[
+                        cloudfront.Behavior(is_default_behavior=True)
+                    ]
                 )
             ],
             viewer_certificate=cloudfront.ViewerCertificate.from_acm_certificate(
-                certificate,
-                aliases=[sub_domain],
+                self.certificate,
+                aliases=[self.sub_domain],
                 security_policy=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018,
                 ssl_method=cloudfront.SSLMethod.SNI
             ),
-            price_class=price_class
+            price_class=self.get_pricing_class()
         )
 
-        if config.get("redirect_apex", True):
-            redirect_distribution = cloudfront.CloudFrontWebDistribution(
-                self, 
-                config.get("stack_name") + "_cloudfront_redirect",
-                origin_configs=[
-                    cloudfront.SourceConfiguration(
-                        custom_origin_source=s3_redirect_origin_config,
-                        behaviors=[cloudfront.Behavior(is_default_behavior=True)]
-                    )
-                ],
-                viewer_certificate=cloudfront.ViewerCertificate.from_acm_certificate(
-                    certificate,
-                    aliases=[domain],
-                    security_policy=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018,
-                    ssl_method=cloudfront.SSLMethod.SNI
-                ),
-                price_class=price_class
-            )
+    def create_redirect_distribution(self):
+        return cloudfront.CloudFrontWebDistribution(
+            self, 
+            self.config.get("stack_name") + "_cloudfront_redirect",
+            origin_configs=[
+                cloudfront.SourceConfiguration(
+                    custom_origin_source=self.create_redirect_oai_config(),
+                    behaviors=[
+                        cloudfront.Behavior(is_default_behavior=True)
+                    ]
+                )
+            ],
+            viewer_certificate=cloudfront.ViewerCertificate.from_acm_certificate(
+                self.certificate,
+                aliases=[self.domain],
+                security_policy=cloudfront.SecurityPolicyProtocol.TLS_V1_2_2018,
+                ssl_method=cloudfront.SSLMethod.SNI
+            ),
+            price_class=self.get_pricing_class()
+        )
 
+    def create_records(self):
         """
         Setup route53 entries
         At a minimum:
@@ -155,50 +192,53 @@ class DeployStack(core.Stack):
           AAAA Record: example.com
           AAAA Record: subdomain.example.com
         """
-        zone = route53.HostedZone.from_lookup(
-            self,
-            config.get("stack_name") + "_zone",
-            domain_name=config.get("domain")
+        self.cloudfront_site_target = route53.RecordTarget.from_alias(
+            route53_targets.CloudFrontTarget(
+                self.site_distribution
+            )
         )
-
-        cloudfront_site_target = route53.RecordTarget.from_alias(route53_targets.CloudFrontTarget(site_distribution))
-
-        if config.get("redirect_apex", True):
-            cloudfront_redirect_target = route53.RecordTarget.from_alias(route53_targets.CloudFrontTarget(redirect_distribution))
-            apex_target = cloudfront_redirect_target
+        if self.config.get("redirect_apex", True):
+            apex_target = route53.RecordTarget.from_alias(
+                route53_targets.CloudFrontTarget(
+                    self.redirect_distribution
+                )
+            )
         else:
-            apex_target = cloudfront_site_target
+            apex_target = self.cloudfront_site_target
 
+        self.create_site_records()
+        self.create_apex_records(apex_target)
+
+    def create_site_records(self):
         route53.ARecord(
             self,
-            config.get("stack_name") + "_v4_sub_alias",
-            zone=zone,
-            record_name=config.get("subdomain"),
-            target=cloudfront_site_target
+            self.config.get("stack_name") + "_v4_sub_alias",
+            zone=self.zone,
+            record_name=self.config.get("subdomain"),
+            target=self.cloudfront_site_target
         )
 
-        if config.get("include_apex", False):
-            route53.ARecord(
-                self,
-                config.get("stack_name") + "_v4_apex_alias",
-                zone=zone,
-                target=apex_target
-            )
-
-
-        if config.get("ipv6_support", False):
+        if self.config.get("ipv6_support", False):
             route53.AaaaRecord(
                 self,
-                config.get("stack_name") + "_v6_sub_alias",
-                zone=zone,
-                record_name=config.get("subdomain"),
-                target=cloudfront_site_target
+                self.config.get("stack_name") + "_v6_sub_alias",
+                zone=self.zone,
+                record_name=self.config.get("subdomain"),
+                target=self.cloudfront_site_target
             )
 
-            if config.get("include_apex", False):
-                route53.AaaaRecord(
-                    self,
-                    config.get("stack_name") + "_v6_apex_alias",
-                    zone=zone,
-                    target=apex_target
-                )
+    def create_apex_records(self, apex_target):
+        route53.ARecord(
+            self,
+            self.config.get("stack_name") + "_v4_apex_alias",
+            zone=self.zone,
+            target=apex_target
+        )
+
+        if self.config.get("ipv6_support", False):
+            route53.AaaaRecord(
+                self,
+                self.config.get("stack_name") + "_v6_apex_alias",
+                zone=self.zone,
+                target=apex_target
+            )
