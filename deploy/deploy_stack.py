@@ -69,9 +69,11 @@ class DeployStack(core.Stack):
         Gather assets and deploy them to the S3 bucket
         Assumes path is <pwd>/../<config_source>
         """
-        assests_path = os.path.join(os.getcwd(), "..", config.get("source"))
-        if os.path.isdir(assests_path):
-            assets_directory = assests_path
+        paths = [ os.path.join(os.getcwd(), config.get("source")),
+                  os.path.join(os.getcwd(), "..", config.get("source")) ]
+        assets_path = [ path for path in paths if os.path.isdir(path) ]
+        if assets_path:
+            assets_directory = assets_path.pop()
         else:
             print(f"Unable to find src directory: {assets_path}")
             sys.exit(1)
